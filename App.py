@@ -313,7 +313,7 @@ else:
     elif choice == "User Administration":
         st.header("👥 User & Access Control Management")
         
-        tab_users1, tab_users2 = st.tabs(["Create New User", "Existing Users"])
+        tab_users1, tab_users2, tab_users3 = st.tabs(["Create New User", "Existing Users", "Bulk Excel Upload"])
         
         with tab_users1:
             new_user = st.text_input("New Username")
@@ -324,7 +324,6 @@ else:
                 if new_user and new_pass:
                     try:
                         c = conn.cursor()
-                        # Ensure table has plain_pass column if it was an older DB
                         c.execute('''
                             CREATE TABLE IF NOT EXISTS users (
                                 username TEXT PRIMARY KEY,
@@ -365,7 +364,6 @@ else:
                     urole = row["role"]
                     upass = row["plain_pass"] if pd.notna(row["plain_pass"]) else "N/A (Encrypted)"
                     
-                    # Row layout: Username, Role, Password columns + Edit & Delete buttons
                     col_u, col_r, col_p, col_edit, col_del = st.columns([2, 2, 2, 1, 1])
                     
                     with col_u:
@@ -375,7 +373,6 @@ else:
                     with col_p:
                         st.write(f"Pass: `{upass}`")
                         
-                    # Delete Button Logic
                     with col_del:
                         if uname == "admin":
                             st.write("🔒 Protected")
@@ -387,12 +384,9 @@ else:
                                 st.warning(f"Deleted user '{uname}'.")
                                 st.rerun()
                                 
-                    # Edit Popover Logic
                     with col_edit:
                         with st.popover("✏️ Edit"):
                             st.markdown(f"**Edit User: {uname}**")
-                            
-                            # Naya username edit karne ke liye text input
                             new_edit_username = st.text_input("Username", value=uname, key=f"euser_{uname}")
                             new_edit_pass = st.text_input("New Password", value=upass if upass != "N/A (Encrypted)" else "", type="default", key=f"epass_{uname}")
                             new_edit_role = st.selectbox("New Role", ["User", "Super Admin"], index=0 if urole == "User" else 1, key=f"erole_{uname}")
@@ -403,24 +397,19 @@ else:
                                     if new_edit_username.strip() == "":
                                         st.error("Username cannot be empty.")
                                     else:
-                                        # Agar username change kiya hai, toh naya record insert karke purana delete karna padega
                                         if new_edit_username != uname:
-                                            # Check if new username already exists
                                             c.execute("SELECT username FROM users WHERE username = ?", (new_edit_username,))
                                             if c.fetchone():
                                                 st.error("Username already taken!")
                                             else:
                                                 hashed_pass = hash_password(new_edit_pass) if new_edit_pass.strip() != "" else row.get("password", "")
-                                                # Insert new username record
                                                 c.execute("INSERT INTO users (username, password, role, plain_pass) VALUES (?, ?, ?, ?)", 
                                                           (new_edit_username, hashed_pass, new_edit_role, new_edit_pass))
-                                                # Delete old username record
                                                 c.execute("DELETE FROM users WHERE username = ?", (uname,))
                                                 conn.commit()
-                                                st.success(f"User updated successfully!")
+                                                st.success("User updated successfully!")
                                                 st.rerun()
                                         else:
-                                            # Agar username same hai, toh sirf password aur role update honge
                                             if new_edit_pass.strip() != "":
                                                 hashed_new_pass = hash_password(new_edit_pass)
                                                 c.execute("UPDATE users SET password = ?, role = ?, plain_pass = ? WHERE username = ?", 
@@ -434,5 +423,61 @@ else:
                                     st.error(f"Error: {e}")
                     
                     st.divider()
+
+        with tab_users3:
+            st.info("Upload an Excel file with exactly these columns: **S.No**, **Username**, **Pwd**, **Role**")
+            user_upload_file = st.file_uploader("Upload Users Excel File", type=["xlsx", "xls"], key="user_excel_uploader")
+
+            if user_upload_file is not None:
+                try:
+                    df_users_upload = pd.read_excel(user_upload_file)
+                    st.write("Preview of uploaded users data:")
+                    st.dataframe(df_users_upload.head(3))
+
+                    if st.button("Process Users Bulk Upload"):
+                        c = conn.cursor()
+                        # Ensure table structure exists
+                        c.execute('''
+                            CREATE TABLE IF NOT EXISTS users (
+                                username TEXT PRIMARY KEY,
+                                password TEXT NOT NULL,
+                                role TEXT NOT NULL,
+                                plain_pass TEXT
+                            )
+                        ''')
+                        
+                        users_added = 0
+                        users_updated = 0
+
+                        for index, row in df_users_upload.iterrows():
+                            u_name = str(row.get("Username", "")).strip()
+                            u_pwd = str(row.get("Pwd", "")).strip()
+                            u_role = str(row.get("Role", "User")).strip()
+
+                            if not u_name or u_name.lower() == 'nan' or not u_pwd or u_pwd.lower() == 'nan':
+                                continue
+
+                            # Standardize role name if needed
+                            if "admin" in u_role.lower():
+                                u_role = "Super Admin"
+                            else:
+                                u_role = "User"
+
+                            hashed_upwd = hash_password(u_pwd)
+
+                            try:
+                                c.execute("INSERT INTO users (username, password, role, plain_pass) VALUES (?, ?, ?, ?)", 
+                                          (u_name, hashed_upwd, u_role, u_pwd))
+                                users_added += 1
+                            except sqlite3.IntegrityError:
+                                c.execute("UPDATE users SET password = ?, role = ?, plain_pass = ? WHERE username = ?", 
+                                          (hashed_upwd, u_role, u_pwd, u_name))
+                                users_updated += 1
+
+                        conn.commit()
+                        st.success(f"✅ Bulk upload complete! Added {users_added} new users and updated {users_updated} existing users.")
+
+                except Exception as e:
+                    st.error(f"Error reading users file. Ensure headers are S.No, Username, Pwd, Role. Details: {e}")
 
     conn.close()
