@@ -100,22 +100,40 @@ if not st.session_state["authenticated"]:
     st.info("Default Admin Credentials -> Username: **admin** | Password: **admin123**")
 
 else:
-    # --- CUSTOM CSS FOR UI LAYOUT & FREEZING ---
+    # --- CUSTOM CSS FOR UI LAYOUT & WHITE THEME ---
     st.markdown("""
         <style>
-            /* Increased padding-top to prevent the text from being cut off */
-            .block-container { padding-top: 3.5rem !important; }
+            /* Force overall background to white and text to black */
+            .stApp {
+                background-color: #FFFFFF !important;
+                color: #000000 !important;
+            }
             
-            /* Added padding-top to the sticky container to give it breathing room */
+            /* Target text elements, headers, and labels */
+            h1, h2, h3, h4, h5, h6, p, span, label, div {
+                color: #000000 !important;
+            }
+
+            /* Increased padding-top to prevent text clipping */
+            .block-container { padding-top: 3.5rem !important; background-color: #FFFFFF !important; }
+            
+            /* Sticky header container styling for white theme */
             div[data-testid="stVerticalBlock"] > div:first-of-type {
                 position: sticky;
                 top: 2.875rem; 
                 z-index: 999;
-                background-color: #0E1117; 
+                background-color: #F8F9FA !important; 
                 padding-top: 10px; 
                 padding-bottom: 10px;
-                border-bottom: 1px solid #333;
+                border-bottom: 1px solid #DDD;
             }
+
+            /* Fix input field backgrounds and text color */
+            div[data-baseweb="input"], div[data-baseweb="select"], input {
+                background-color: #FFFFFF !important;
+                color: #000000 !important;
+            }
+
             .stButton > button {
                 padding: 0px 15px !important;
                 min-height: 0px !important;
