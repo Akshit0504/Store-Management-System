@@ -28,7 +28,7 @@ def init_db():
         )
     ''')
 
-    # UPDATED: Table for Inventory Items (Matches your 4 new fields)
+    # Table for Inventory Items
     c.execute('''
         CREATE TABLE IF NOT EXISTS inventory (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -63,7 +63,6 @@ if "authenticated" not in st.session_state:
     st.session_state["role"] = ""
     st.session_state["login_time"] = 0
 
-# Check if session has expired (5 minutes check)
 # Check if session has expired (5 minutes check)
 if st.session_state["authenticated"]:
     current_time = time.time()
@@ -184,7 +183,6 @@ else:
         col_title, col_user, col_btn = st.columns([6, 2, 1])
         
         with col_title:
-            # Increased font size to 22px and made it bold so it looks like a proper title
             st.markdown("<span style='font-size: 22px; font-weight: bold; color: #a5a5a5;'>Store Management System</span>", unsafe_allow_html=True)
             
         with col_user:
@@ -202,12 +200,11 @@ else:
         choice = st.radio("Navigation Menu", menu_options, horizontal=True, label_visibility="collapsed")
     
     conn = get_connection()
-   # 1. VIEW INVENTORY
+    
+    # 1. VIEW INVENTORY
     if choice == "View Inventory":
         st.header("📊 Current Inventory")
         df = pd.read_sql_query("SELECT item_name AS 'Items Name', store_stock AS 'Store Stock', duty_point_stock AS 'Duty Point Stock', total_stock AS 'Total Stock' FROM inventory", conn)
-        
-        # Display dataframe with native interactive sorting enabled on all columns (without S.No)
         st.dataframe(df, use_container_width=True, hide_index=True)
 
     # 2. UPDATE STOCK
@@ -222,7 +219,8 @@ else:
             
             if st.button("Save Issue Record"):
                 c = conn.cursor()
-                c.execute("UPDATE inventory SET issued_stock = issued_stock + ? WHERE item_name = ?", (issued_qty, selected_item))
+                # If your table uses issued_stock, make sure the column exists or adjust accordingly
+                c.execute("UPDATE inventory SET total_stock = total_stock - ? WHERE item_name = ?", (issued_qty, selected_item))
                 conn.commit()
                 st.success(f"Updated issued stock for {selected_item}!")
 
@@ -263,7 +261,7 @@ else:
                     st.warning(f"Deleted '{delete_item}' from database.")
                     st.rerun()
 
-       with tab3:
+        with tab3:
             st.info("Upload an Excel file with exactly these columns: **Items Name**, **Store Stock**, **Duty Point Stock**, **Total Stock**")
             uploaded_file = st.file_uploader("Upload Excel File", type=["xlsx", "xls"])
 
@@ -279,7 +277,6 @@ else:
                         items_updated = 0
 
                         for index, row in df_upload.iterrows():
-                            # Extract the 4 specific fields
                             item_name = str(row.get("Items Name", "")).strip()
                             
                             try:
@@ -300,7 +297,6 @@ else:
                             if not item_name or item_name.lower() == 'nan':
                                 continue
 
-                            # Try to add new, if it exists, update it instead
                             try:
                                 c.execute("INSERT INTO inventory (item_name, store_stock, duty_point_stock, total_stock) VALUES (?, ?, ?, ?)", 
                                           (item_name, store_stock, duty_point, total_stock))
@@ -432,7 +428,7 @@ else:
                     st.divider()
 
         with tab_users3:
-            st.info("Upload an Excel file with exactly these columns: **S.No**, **Username**, **Pwd**, **Role**")
+            st.info("Upload an Excel file with exactly these columns: **Username**, **Pwd**, **Role**")
             user_upload_file = st.file_uploader("Upload Users Excel File", type=["xlsx", "xls"], key="user_excel_uploader")
 
             if user_upload_file is not None:
@@ -443,7 +439,6 @@ else:
 
                     if st.button("Process Users Bulk Upload"):
                         c = conn.cursor()
-                        # Ensure table structure exists
                         c.execute('''
                             CREATE TABLE IF NOT EXISTS users (
                                 username TEXT PRIMARY KEY,
@@ -464,7 +459,6 @@ else:
                             if not u_name or u_name.lower() == 'nan' or not u_pwd or u_pwd.lower() == 'nan':
                                 continue
 
-                            # Standardize role name if needed
                             if "admin" in u_role.lower():
                                 u_role = "Super Admin"
                             else:
@@ -485,6 +479,6 @@ else:
                         st.success(f"✅ Bulk upload complete! Added {users_added} new users and updated {users_updated} existing users.")
 
                 except Exception as e:
-                    st.error(f"Error reading users file. Ensure headers are S.No, Username, Pwd, Role. Details: {e}")
+                    st.error(f"Error reading users file. Ensure headers are Username, Pwd, Role. Details: {e}")
 
     conn.close()
