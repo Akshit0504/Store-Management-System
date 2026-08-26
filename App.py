@@ -64,13 +64,18 @@ if "authenticated" not in st.session_state:
     st.session_state["login_time"] = 0
 
 # Check if session has expired (5 minutes check)
+# Check if session has expired (5 minutes check)
 if st.session_state["authenticated"]:
     current_time = time.time()
     if (current_time - st.session_state["login_time"]) > SESSION_TIMEOUT_SECONDS:
         st.session_state["authenticated"] = False
         st.session_state["username"] = ""
         st.session_state["role"] = ""
+        st.session_state["login_time"] = 0
         st.warning("Session expired due to 5 minutes of inactivity. Please login again.")
+    else:
+        # Refresh the timer on every active interaction/rerun
+        st.session_state["login_time"] = current_time
 
 def login_user(username, password):
     conn = get_connection()
