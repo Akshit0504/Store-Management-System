@@ -97,7 +97,7 @@ if not st.session_state["authenticated"]:
                 st.rerun()
             else:
                 st.error("Invalid Username or Password.")
-    st.info("Default Admin Credentials -> Username: **admin** | Password: **admin123**")
+    #st.info("Default Admin Credentials -> Username: **admin** | Password: **admin123**")
 
 else:
     # --- CUSTOM CSS FOR FULL FORCED LIGHT THEME ---
