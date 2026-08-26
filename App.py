@@ -391,20 +391,47 @@ else:
                     with col_edit:
                         with st.popover("✏️ Edit"):
                             st.markdown(f"**Edit User: {uname}**")
+                            
+                            # Naya username edit karne ke liye text input
+                            new_edit_username = st.text_input("Username", value=uname, key=f"euser_{uname}")
                             new_edit_pass = st.text_input("New Password", value=upass if upass != "N/A (Encrypted)" else "", type="default", key=f"epass_{uname}")
                             new_edit_role = st.selectbox("New Role", ["User", "Super Admin"], index=0 if urole == "User" else 1, key=f"erole_{uname}")
                             
                             if st.button("Save Changes", key=f"save_{uname}"):
                                 c = conn.cursor()
-                                if new_edit_pass.strip() != "":
-                                    hashed_new_pass = hash_password(new_edit_pass)
-                                    c.execute("UPDATE users SET password = ?, role = ?, plain_pass = ? WHERE username = ?", 
-                                              (hashed_new_pass, new_edit_role, new_edit_pass, uname))
-                                else:
-                                    c.execute("UPDATE users SET role = ? WHERE username = ?", (new_edit_role, uname))
-                                conn.commit()
-                                st.success(f"Updated user '{uname}' successfully!")
-                                st.rerun()
+                                try:
+                                    if new_edit_username.strip() == "":
+                                        st.error("Username cannot be empty.")
+                                    else:
+                                        # Agar username change kiya hai, toh naya record insert karke purana delete karna padega
+                                        if new_edit_username != uname:
+                                            # Check if new username already exists
+                                            c.execute("SELECT username FROM users WHERE username = ?", (new_edit_username,))
+                                            if c.fetchone():
+                                                st.error("Username already taken!")
+                                            else:
+                                                hashed_pass = hash_password(new_edit_pass) if new_edit_pass.strip() != "" else row.get("password", "")
+                                                # Insert new username record
+                                                c.execute("INSERT INTO users (username, password, role, plain_pass) VALUES (?, ?, ?, ?)", 
+                                                          (new_edit_username, hashed_pass, new_edit_role, new_edit_pass))
+                                                # Delete old username record
+                                                c.execute("DELETE FROM users WHERE username = ?", (uname,))
+                                                conn.commit()
+                                                st.success(f"User updated successfully!")
+                                                st.rerun()
+                                        else:
+                                            # Agar username same hai, toh sirf password aur role update honge
+                                            if new_edit_pass.strip() != "":
+                                                hashed_new_pass = hash_password(new_edit_pass)
+                                                c.execute("UPDATE users SET password = ?, role = ?, plain_pass = ? WHERE username = ?", 
+                                                          (hashed_new_pass, new_edit_role, new_edit_pass, uname))
+                                            else:
+                                                c.execute("UPDATE users SET role = ? WHERE username = ?", (new_edit_role, uname))
+                                            conn.commit()
+                                            st.success(f"Updated user '{uname}' successfully!")
+                                            st.rerun()
+                                except Exception as e:
+                                    st.error(f"Error: {e}")
                     
                     st.divider()
 
