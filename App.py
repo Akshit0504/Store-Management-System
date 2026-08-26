@@ -202,11 +202,13 @@ else:
         choice = st.radio("Navigation Menu", menu_options, horizontal=True, label_visibility="collapsed")
     
     conn = get_connection()
-    # 1. VIEW INVENTORY
+   # 1. VIEW INVENTORY
     if choice == "View Inventory":
         st.header("📊 Current Inventory")
         df = pd.read_sql_query("SELECT item_name AS 'Items Name', store_stock AS 'Store Stock', duty_point_stock AS 'Duty Point Stock', total_stock AS 'Total Stock' FROM inventory", conn)
-        st.dataframe(df, use_container_width=True)
+        
+        # Display dataframe with native interactive sorting enabled on all columns (without S.No)
+        st.dataframe(df, use_container_width=True, hide_index=True)
 
     # 2. UPDATE STOCK
     elif choice == "Update Stock":
@@ -261,7 +263,7 @@ else:
                     st.warning(f"Deleted '{delete_item}' from database.")
                     st.rerun()
 
-        with tab3:
+       with tab3:
             st.info("Upload an Excel file with exactly these columns: **Items Name**, **Store Stock**, **Duty Point Stock**, **Total Stock**")
             uploaded_file = st.file_uploader("Upload Excel File", type=["xlsx", "xls"])
 
