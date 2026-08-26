@@ -100,22 +100,25 @@ if not st.session_state["authenticated"]:
     st.info("Default Admin Credentials -> Username: **admin** | Password: **admin123**")
 
 else:
-    # --- CUSTOM CSS FOR UI LAYOUT & WHITE THEME ---
+    # --- CUSTOM CSS FOR FULL WHITE & BLACK UI ON MOBILE/DESKTOP ---
     st.markdown("""
         <style>
             /* Force overall background to white and text to black */
-            .stApp {
+            .stApp, .main, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
                 background-color: #FFFFFF !important;
                 color: #000000 !important;
             }
             
-            /* Target text elements, headers, and labels */
-            h1, h2, h3, h4, h5, h6, p, span, label, div {
+            /* Target all text elements, headers, labels, and writing */
+            h1, h2, h3, h4, h5, h6, p, span, label, div, .stMarkdown {
                 color: #000000 !important;
             }
 
             /* Increased padding-top to prevent text clipping */
-            .block-container { padding-top: 3.5rem !important; background-color: #FFFFFF !important; }
+            .block-container { 
+                padding-top: 3.5rem !important; 
+                background-color: #FFFFFF !important; 
+            }
             
             /* Sticky header container styling for white theme */
             div[data-testid="stVerticalBlock"] > div:first-of-type {
@@ -128,16 +131,32 @@ else:
                 border-bottom: 1px solid #DDD;
             }
 
-            /* Fix input field backgrounds and text color */
-            div[data-baseweb="input"], div[data-baseweb="select"], input {
+            /* Fix input fields, dropdowns, and select boxes background */
+            input, select, textarea, div[data-baseweb="select"] > div, div[data-baseweb="input"] > div {
+                background-color: #FFFFFF !important;
+                color: #000000 !important;
+                border-color: #CCCCCC !important;
+            }
+
+            /* Fix dropdown menu text and popups */
+            div[data-baseweb="popover"], div[role="listbox"] div {
                 background-color: #FFFFFF !important;
                 color: #000000 !important;
             }
 
+            /* Fix standard Streamlit buttons (Logout, Save, Add, etc.) */
             .stButton > button {
+                background-color: #F0F2F6 !important;
+                color: #000000 !important;
+                border: 1px solid #CCCCCC !important;
                 padding: 0px 15px !important;
                 min-height: 0px !important;
                 height: 35px !important;
+            }
+            
+            .stButton > button:hover {
+                background-color: #E0E2E6 !important;
+                color: #000000 !important;
             }
         </style>
     """, unsafe_allow_html=True)
