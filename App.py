@@ -324,17 +324,88 @@ else:
                 if new_user and new_pass:
                     try:
                         c = conn.cursor()
-                        c.execute("INSERT INTO users (username, password, role) VALUES (?, ?, ?)", 
-                                  (new_user, hash_password(new_pass), new_role))
+                        # Ensure table has plain_pass column if it was an older DB
+                        c.execute('''
+                            CREATE TABLE IF NOT EXISTS users (
+                                username TEXT PRIMARY KEY,
+                                password TEXT NOT NULL,
+                                role TEXT NOT NULL,
+                                plain_pass TEXT
+                            )
+                        ''')
+                        hashed_p = hash_password(new_pass)
+                        c.execute("INSERT OR REPLACE INTO users (username, password, role, plain_pass) VALUES (?, ?, ?, ?)", 
+                                  (new_user, hashed_p, new_role, new_pass))
                         conn.commit()
                         st.success(f"User '{new_user}' created successfully with role: {new_role}!")
-                    except sqlite3.IntegrityError:
-                        st.error("Username already taken.")
+                    except Exception as e:
+                        st.error(f"Error: {e}")
                 else:
                     st.error("Please fill in all fields.")
                     
         with tab_users2:
-            users_df = pd.read_sql_query("SELECT username AS 'Username', role AS 'Role' FROM users", conn)
-            st.dataframe(users_df, use_container_width=True)
+            st.subheader("Manage Existing Users")
+            
+            try:
+                users_list = pd.read_sql_query("SELECT username, role, plain_pass FROM users", conn)
+            except:
+                c = conn.cursor()
+                try:
+                    c.execute("ALTER TABLE users ADD COLUMN plain_pass TEXT")
+                    conn.commit()
+                except:
+                    pass
+                users_list = pd.read_sql_query("SELECT username, role, plain_pass FROM users", conn)
+            
+            if users_list.empty:
+                st.info("No users found.")
+            else:
+                for idx, row in users_list.iterrows():
+                    uname = row["username"]
+                    urole = row["role"]
+                    upass = row["plain_pass"] if pd.notna(row["plain_pass"]) else "N/A (Encrypted)"
+                    
+                    # Row layout: Username, Role, Password columns + Edit & Delete buttons
+                    col_u, col_r, col_p, col_edit, col_del = st.columns([2, 2, 2, 1, 1])
+                    
+                    with col_u:
+                        st.write(f"**{uname}**")
+                    with col_r:
+                        st.write(f"Role: {urole}")
+                    with col_p:
+                        st.write(f"Pass: `{upass}`")
+                        
+                    # Delete Button Logic
+                    with col_del:
+                        if uname == "admin":
+                            st.write("🔒 Protected")
+                        else:
+                            if st.button("🗑️ Delete", key=f"del_{uname}"):
+                                c = conn.cursor()
+                                c.execute("DELETE FROM users WHERE username = ?", (uname,))
+                                conn.commit()
+                                st.warning(f"Deleted user '{uname}'.")
+                                st.rerun()
+                                
+                    # Edit Popover Logic
+                    with col_edit:
+                        with st.popover("✏️ Edit"):
+                            st.markdown(f"**Edit User: {uname}**")
+                            new_edit_pass = st.text_input("New Password", value=upass if upass != "N/A (Encrypted)" else "", type="default", key=f"epass_{uname}")
+                            new_edit_role = st.selectbox("New Role", ["User", "Super Admin"], index=0 if urole == "User" else 1, key=f"erole_{uname}")
+                            
+                            if st.button("Save Changes", key=f"save_{uname}"):
+                                c = conn.cursor()
+                                if new_edit_pass.strip() != "":
+                                    hashed_new_pass = hash_password(new_edit_pass)
+                                    c.execute("UPDATE users SET password = ?, role = ?, plain_pass = ? WHERE username = ?", 
+                                              (hashed_new_pass, new_edit_role, new_edit_pass, uname))
+                                else:
+                                    c.execute("UPDATE users SET role = ? WHERE username = ?", (new_edit_role, uname))
+                                conn.commit()
+                                st.success(f"Updated user '{uname}' successfully!")
+                                st.rerun()
+                    
+                    st.divider()
 
     conn.close()
