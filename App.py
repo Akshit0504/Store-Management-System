@@ -241,7 +241,7 @@ else:
                 st.warning("No items available to update.")
             else:
                 up_item = st.selectbox("Items Name", items_list, key="update_stock_item")
-                up_qty = st.number_input("Qty", min_value=0, step=1, key="update_stock_qty")
+                up_qty = st.number_input("Qty", step=1, key="update_stock_qty")
                 up_target = st.selectbox("Update in", ["Store Stock", "Duty point stock"], key="update_stock_target")
                 
                 if st.button("Update Stock Count"):
@@ -253,7 +253,7 @@ else:
                         c.execute("UPDATE inventory SET duty_point_stock = duty_point_stock + ?, total_stock = total_stock + ? WHERE item_name = ?", 
                                   (up_qty, up_qty, up_item))
                     conn.commit()
-                    st.success(f"Successfully added {up_qty} to {up_target} for '{up_item}'!")
+                    st.success("Item has been updated")
                     st.rerun()
 
         with tab3:
