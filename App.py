@@ -241,7 +241,6 @@ else:
                 st.warning("No items available to update.")
             else:
                 up_item = st.selectbox("Items Name", items_list, key="update_stock_item")
-                # step=1 with no min_value allows entering both positive and negative values seamlessly
                 up_qty = st.number_input("Qty", step=1, key="update_stock_qty")
                 up_target = st.selectbox("Update in", ["Store Stock", "Duty point stock"], key="update_stock_target")
                 
@@ -255,7 +254,6 @@ else:
                                   (up_qty, up_qty, up_item))
                     conn.commit()
                     st.success("Item has been updated")
-                    st.rerun()
 
         with tab3:
             items = pd.read_sql_query("SELECT item_name FROM inventory", conn)["item_name"].tolist()
