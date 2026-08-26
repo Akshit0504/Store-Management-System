@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 import hashlib
+import time
 
 # ---------------------------------------------------------
 # DATABASE SETUP & HELPER FUNCTIONS
@@ -52,12 +53,24 @@ def init_db():
 init_db()
 
 # ---------------------------------------------------------
-# AUTHENTICATION SYSTEM
+# AUTHENTICATION & 5-MINUTE SESSION TIMEOUT SETUP
 # ---------------------------------------------------------
+SESSION_TIMEOUT_SECONDS = 300  # 5 Minutes (5 * 60 seconds)
+
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
     st.session_state["username"] = ""
     st.session_state["role"] = ""
+    st.session_state["login_time"] = 0
+
+# Check if session has expired (5 minutes check)
+if st.session_state["authenticated"]:
+    current_time = time.time()
+    if (current_time - st.session_state["login_time"]) > SESSION_TIMEOUT_SECONDS:
+        st.session_state["authenticated"] = False
+        st.session_state["username"] = ""
+        st.session_state["role"] = ""
+        st.warning("Session expired due to 5 minutes of inactivity. Please login again.")
 
 def login_user(username, password):
     conn = get_connection()
@@ -70,6 +83,7 @@ def login_user(username, password):
         st.session_state["authenticated"] = True
         st.session_state["username"] = username
         st.session_state["role"] = result[0]
+        st.session_state["login_time"] = time.time()  # Save login timestamp
         return True
     return False
 
@@ -77,6 +91,7 @@ def logout_user():
     st.session_state["authenticated"] = False
     st.session_state["username"] = ""
     st.session_state["role"] = ""
+    st.session_state["login_time"] = 0
 
 # ---------------------------------------------------------
 # UI & APP LOGIC
@@ -87,8 +102,8 @@ if not st.session_state["authenticated"]:
     st.title("🔑 Inventory Management Login")
     
     with st.form("login_form"):
-        username_input = st.text_input("Username")
-        password_input = st.text_input("Password", type="password")
+        username_input = st.text_input("Username", key="login_username")
+        password_input = st.text_input("Password", type="password", key="login_password")
         submit_button = st.form_submit_button("Login")
         
         if submit_button:
@@ -97,7 +112,6 @@ if not st.session_state["authenticated"]:
                 st.rerun()
             else:
                 st.error("Invalid Username or Password.")
-    #st.info("Default Admin Credentials -> Username: **admin** | Password: **admin123**")
 
 else:
     # --- CUSTOM CSS FOR FULL FORCED LIGHT THEME ---
