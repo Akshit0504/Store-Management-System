@@ -193,7 +193,7 @@ else:
                 logout_user()
                 st.rerun()
         
-        menu_options = ["View Inventory", "Update Stock"]
+        menu_options = ["View Inventory"]
         if st.session_state["role"] == "Super Admin":
             menu_options.extend(["Manage Items (Add/Delete)", "User Administration"])
 
@@ -207,28 +207,11 @@ else:
         df = pd.read_sql_query("SELECT item_name AS 'Items Name', store_stock AS 'Store Stock', duty_point_stock AS 'Duty Point Stock', total_stock AS 'Total Stock' FROM inventory", conn)
         st.dataframe(df, use_container_width=True, hide_index=True)
 
-    # 2. UPDATE STOCK
-    elif choice == "Update Stock":
-        st.header("📦 Update Issued Stock")
-        items = pd.read_sql_query("SELECT item_name FROM inventory", conn)["item_name"].tolist()
-        if not items:
-            st.warning("No items available in the database.")
-        else:
-            selected_item = st.selectbox("Select Item", items)
-            issued_qty = st.number_input("Issued Quantity", min_value=0, step=1)
-            
-            if st.button("Save Issue Record"):
-                c = conn.cursor()
-                # If your table uses issued_stock, make sure the column exists or adjust accordingly
-                c.execute("UPDATE inventory SET total_stock = total_stock - ? WHERE item_name = ?", (issued_qty, selected_item))
-                conn.commit()
-                st.success(f"Updated issued stock for {selected_item}!")
-
-    # 3. MANAGE ITEMS (Super Admin Only)
+    # 2. MANAGE ITEMS (Super Admin Only)
     elif choice == "Manage Items (Add/Delete)":
         st.header("🛠️ Inventory Controls (Admin Only)")
 
-        tab1, tab2, tab3 = st.tabs(["Add New Item", "Delete Item", "Bulk Excel Upload"])
+        tab1, tab2, tab3, tab4 = st.tabs(["Add New Item", "Update Stock", "Delete Item", "Bulk Excel Upload"])
 
         with tab1:
             new_name = st.text_input("Items Name")
@@ -251,6 +234,29 @@ else:
                     st.error("Item name cannot be empty.")
 
         with tab2:
+            st.subheader("Update Existing Stock")
+            items_list = pd.read_sql_query("SELECT item_name FROM inventory", conn)["item_name"].tolist()
+            
+            if not items_list:
+                st.warning("No items available to update.")
+            else:
+                up_item = st.selectbox("Items Name", items_list, key="update_stock_item")
+                up_qty = st.number_input("Qty", min_value=0, step=1, key="update_stock_qty")
+                up_target = st.selectbox("Update in", ["Store Stock", "Duty point stock"], key="update_stock_target")
+                
+                if st.button("Update Stock Count"):
+                    c = conn.cursor()
+                    if up_target == "Store Stock":
+                        c.execute("UPDATE inventory SET store_stock = store_stock + ?, total_stock = total_stock + ? WHERE item_name = ?", 
+                                  (up_qty, up_qty, up_item))
+                    else:
+                        c.execute("UPDATE inventory SET duty_point_stock = duty_point_stock + ?, total_stock = total_stock + ? WHERE item_name = ?", 
+                                  (up_qty, up_qty, up_item))
+                    conn.commit()
+                    st.success(f"Successfully added {up_qty} to {up_target} for '{up_item}'!")
+                    st.rerun()
+
+        with tab3:
             items = pd.read_sql_query("SELECT item_name FROM inventory", conn)["item_name"].tolist()
             if items:
                 delete_item = st.selectbox("Select Item to Delete", items)
@@ -261,7 +267,7 @@ else:
                     st.warning(f"Deleted '{delete_item}' from database.")
                     st.rerun()
 
-        with tab3:
+        with tab4:
             st.info("Upload an Excel file with exactly these columns: **Items Name**, **Store Stock**, **Duty Point Stock**, **Total Stock**")
             uploaded_file = st.file_uploader("Upload Excel File", type=["xlsx", "xls"])
 
@@ -312,7 +318,7 @@ else:
                 except Exception as e:
                     st.error(f"Error reading file. Ensure you have the exact column headers. Details: {e}")
 
-    # 4. USER ADMINISTRATION (Super Admin Only)
+    # 3. USER ADMINISTRATION (Super Admin Only)
     elif choice == "User Administration":
         st.header("👥 User & Access Control Management")
         
